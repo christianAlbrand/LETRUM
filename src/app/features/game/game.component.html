@@ -1,0 +1,94 @@
+<main class="game">
+
+  <header class="game-header">
+    <h1>LETRUM</h1>
+    <p>Adivina al deportista</p>
+  </header>
+
+  <section class="search-section">
+    <input
+      type="text"
+      [(ngModel)]="search"
+      placeholder="Busca un deportista..."
+      [disabled]="gameOver"
+    />
+
+    @if (filteredAthletes.length > 0) {
+      <div class="suggestions">
+        @for (athlete of filteredAthletes; track athlete.id) {
+          <button type="button" class="suggestion" (click)="selectAthlete(athlete)">
+            <strong>{{ athlete.name }}</strong>
+            <span>{{ athlete.sport }} · {{ athlete.team }}</span>
+          </button>
+        }
+      </div>
+    }
+  </section>
+
+  <section class="game-info">
+    <span>Intentos</span>
+    <strong>{{ results.length }} / 6</strong>
+  </section>
+
+  @if (results.length > 0) {
+    <section class="attempts">
+
+      <div class="attempt-header">
+        <span>Deportista</span>
+        <span>País</span>
+        <span>Equipo</span>
+        <span>Posición</span>
+        <span>Liga</span>
+        <span>Edad</span>
+      </div>
+
+      @for (r of results; track r.athlete.id) {
+        <div class="attempt">
+
+          <span class="cell-name">{{ r.athlete.name }}</span>
+
+          <span [class]="getMatchClass(r.fields.nationality.match)">
+            {{ r.fields.nationality.value }}
+          </span>
+
+          <span [class]="getMatchClass(r.fields.team.match)">
+            {{ r.fields.team.value }}
+          </span>
+
+          <span [class]="getMatchClass(r.fields.position.match)">
+            {{ r.fields.position.value }}
+          </span>
+
+          <span [class]="getMatchClass(r.fields.league.match)">
+            {{ r.fields.league.value }}
+          </span>
+
+          <span [class]="getMatchClass(r.fields.age.match)">
+            {{ r.fields.age.value }}
+            @if (r.fields.age.match === 'higher') { ⬆️ }
+            @if (r.fields.age.match === 'lower')  { ⬇️ }
+          </span>
+
+        </div>
+      }
+
+    </section>
+  }
+
+  @if (won) {
+    <section class="result success">
+      <h2>🎉 ¡Correcto!</h2>
+      <p>Has encontrado al deportista.</p>
+      <button type="button" (click)="resetGame()">Jugar nuevamente</button>
+    </section>
+  }
+
+  @if (gameOver && !won) {
+    <section class="result failure">
+      <h2>Se acabaron los intentos</h2>
+      <p>Era: <strong>{{ gameService.getTarget().name }}</strong></p>
+      <button type="button" (click)="resetGame()">Intentar nuevamente</button>
+    </section>
+  }
+
+</main>
