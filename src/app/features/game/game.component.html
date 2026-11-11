@@ -1,94 +1,212 @@
 <main class="game">
 
   <header class="game-header">
-    <h1>LETRUM</h1>
+    <h1>SPORTLE</h1>
     <p>Adivina al deportista</p>
   </header>
+  @if (loadingGame()) {
+  <section class="loading-game">
+    <p>Seleccionando deportista...</p>
+  </section>
+  } @else if (!gameStarted()) {
+  <section class="loading-game">
+    <p>{{ gameError() }}</p>
+
+    <button type="button" (click)="loadGame()">
+      Reintentar
+    </button>
+  </section>
+  } @else {
+  <!-- Aquí va tu buscador, intentos y resultados actuales -->
+  }
+
+  <!-- PARTIDA -->
+  @if (gameStarted()) {
 
   <section class="search-section">
-    <input
-      type="text"
-      [(ngModel)]="search"
-      placeholder="Busca un deportista..."
-      [disabled]="gameOver"
-    />
 
-    @if (filteredAthletes.length > 0) {
-      <div class="suggestions">
-        @for (athlete of filteredAthletes; track athlete.id) {
-          <button type="button" class="suggestion" (click)="selectAthlete(athlete)">
-            <strong>{{ athlete.name }}</strong>
-            <span>{{ athlete.sport }} · {{ athlete.team }}</span>
-          </button>
-        }
-      </div>
+    <div class="search-box">
+      <input type="text" [ngModel]="search" (ngModelChange)="onSearchChange($event)"
+        placeholder="Escribe el nombre de un deportista..." [disabled]="gameOver()" autocomplete="off" />
+
+      @if (loading()) {
+      <span class="search-status">
+        Buscando en TheSportsDB...
+      </span>
+      }
+    </div>
+
+    @if (apiError()) {
+    <p class="api-message">{{ apiError() }}</p>
     }
+
+    @if (suggestions().length > 0 && !gameOver()) {
+    <div class="suggestions">
+
+      @for (athlete of suggestions(); track athlete.id) {
+      <button type="button" class="suggestion" (click)="selectAthlete(athlete)">
+        @if (athlete.imageUrl) {
+        <img [src]="athlete.imageUrl" [alt]="athlete.name" />
+        }
+
+        <div>
+          <strong>{{ athlete.name }}</strong>
+          <span>
+            {{ athlete.sport || 'Sin información' }}
+            ·
+            {{ athlete.team || 'Sin equipo' }}
+          </span>
+        </div>
+      </button>
+      }
+
+    </div>
+    }
+
   </section>
 
   <section class="game-info">
     <span>Intentos</span>
-    <strong>{{ results.length }} / 6</strong>
+    <strong>{{ attempts().length }} / 6</strong>
   </section>
 
-  @if (results.length > 0) {
-    <section class="attempts">
+  @if (guessResults().length > 0) {
 
-      <div class="attempt-header">
-        <span>Deportista</span>
-        <span>País</span>
-        <span>Equipo</span>
-        <span>Posición</span>
-        <span>Liga</span>
-        <span>Edad</span>
-      </div>
+  <section class="attempts">
 
-      @for (r of results; track r.athlete.id) {
-        <div class="attempt">
+    <div class="attempt-header">
+      <span>Deportista</span>
+      <span>Deporte</span>
+      <span>País</span>
+      <span>Equipo</span>
+      <span>Posición</span>
+      <span>Liga</span>
+      <span>Edad</span>
+    </div>
 
-          <span class="cell-name">{{ r.athlete.name }}</span>
+    @for (result of guessResults(); track result.athlete.id) {
 
-          <span [class]="getMatchClass(r.fields.nationality.match)">
-            {{ r.fields.nationality.value }}
-          </span>
+    <div class="attempt">
 
-          <span [class]="getMatchClass(r.fields.team.match)">
-            {{ r.fields.team.value }}
-          </span>
+      <span class="athlete-name">
+        {{ result.athlete.name }}
+      </span>
 
-          <span [class]="getMatchClass(r.fields.position.match)">
-            {{ r.fields.position.value }}
-          </span>
+      <!-- DEPORTE -->
+      <span class="cell" [class.exact]="result.fields.sport.match === 'exact'"
+        [class.partial]="result.fields.sport.match === 'partial'" [class.wrong]="result.fields.sport.match === 'wrong'"
+        [class.unknown]="result.fields.sport.match === 'unknown'">
+        {{ result.fields.sport.value ?? 'N/D' }}
+      </span>
 
-          <span [class]="getMatchClass(r.fields.league.match)">
-            {{ r.fields.league.value }}
-          </span>
+      <!-- PAÍS -->
+      <span class="cell" [class.exact]="result.fields.nationality.match === 'exact'"
+        [class.partial]="result.fields.nationality.match === 'partial'"
+        [class.wrong]="result.fields.nationality.match === 'wrong'"
+        [class.unknown]="result.fields.nationality.match === 'unknown'">
+        {{ result.fields.nationality.value ?? 'N/D' }}
+      </span>
 
-          <span [class]="getMatchClass(r.fields.age.match)">
-            {{ r.fields.age.value }}
-            @if (r.fields.age.match === 'higher') { ⬆️ }
-            @if (r.fields.age.match === 'lower')  { ⬇️ }
-          </span>
+      <!-- EQUIPO -->
+      <span class="cell" [class.exact]="result.fields.team.match === 'exact'"
+        [class.partial]="result.fields.team.match === 'partial'" [class.wrong]="result.fields.team.match === 'wrong'"
+        [class.unknown]="result.fields.team.match === 'unknown'">
+        {{ result.fields.team.value ?? 'N/D' }}
+      </span>
 
-        </div>
-      }
+      <!-- POSICIÓN -->
+      <span class="cell" [class.exact]="result.fields.position.match === 'exact'"
+        [class.partial]="result.fields.position.match === 'partial'"
+        [class.wrong]="result.fields.position.match === 'wrong'"
+        [class.unknown]="result.fields.position.match === 'unknown'">
+        {{ result.fields.position.value ?? 'N/D' }}
+      </span>
 
-    </section>
+      <!-- LIGA -->
+      <span class="cell" [class.exact]="result.fields.league.match === 'exact'"
+        [class.partial]="result.fields.league.match === 'partial'"
+        [class.wrong]="result.fields.league.match === 'wrong'"
+        [class.unknown]="result.fields.league.match === 'unknown'">
+        {{ result.fields.league.value ?? 'N/D' }}
+      </span>
+
+      <!-- EDAD -->
+      <span class="cell age-cell" [class.exact]="result.fields.age.match === 'exact'"
+        [class.partial]="result.fields.age.match === 'partial'" [class.higher]="result.fields.age.match === 'higher'"
+        [class.lower]="result.fields.age.match === 'lower'" [class.unknown]="result.fields.age.match === 'unknown'">
+        {{ result.fields.age.value ?? 'N/D' }}
+
+        @if (result.fields.age.match === 'higher') {
+        <span class="arrow">↓</span>
+        }
+
+        @if (result.fields.age.match === 'lower') {
+        <span class="arrow">↑</span>
+        }
+
+      </span>
+
+    </div>
+
+    }
+
+  </section>
+
   }
 
-  @if (won) {
-    <section class="result success">
-      <h2>🎉 ¡Correcto!</h2>
-      <p>Has encontrado al deportista.</p>
-      <button type="button" (click)="resetGame()">Jugar nuevamente</button>
-    </section>
+  <!-- VICTORIA -->
+  @if (won()) {
+
+  <section class="result success">
+    <h2>¡Correcto!</h2>
+    <p>Has encontrado al deportista.</p>
+
+    @if (gameService.getTarget(); as target) {
+
+    <h3 class="correct-answer">
+      {{ target.name }}
+    </h3>
+
+    @if (target.imageUrl) {
+    <img class="answer-image" [src]="target.imageUrl" [alt]="target.name" />
+    }
+
+    }
+
+    <button type="button" (click)="resetGame()">
+      Jugar nuevamente
+    </button>
+  </section>
+
   }
 
-  @if (gameOver && !won) {
-    <section class="result failure">
-      <h2>Se acabaron los intentos</h2>
-      <p>Era: <strong>{{ gameService.getTarget().name }}</strong></p>
-      <button type="button" (click)="resetGame()">Intentar nuevamente</button>
-    </section>
+  <!-- DERROTA -->
+  @if (gameOver() && !won()) {
+
+  <section class="result failure">
+    <h2>Se acabaron los intentos</h2>
+
+    <p>El deportista correcto era:</p>
+
+    @if (gameService.getTarget(); as target) {
+
+    <h3 class="correct-answer">
+      {{ target.name }}
+    </h3>
+
+    @if (target.imageUrl) {
+    <img class="answer-image" [src]="target.imageUrl" [alt]="target.name" />
+    }
+
+    }
+
+    <button type="button" (click)="resetGame()">
+      Intentar nuevamente
+    </button>
+  </section>
+
+  }
+
   }
 
 </main>
