@@ -1,211 +1,393 @@
+
 <main class="game">
 
+  <!-- ENCABEZADO -->
   <header class="game-header">
-    <h1>SPORTLE</h1>
-    <p>Adivina al deportista</p>
+    <div class="header-tag">THE ULTIMATE SPORTS CHALLENGE</div>
+    <h1>SPORT<span>LE</span></h1>
+    <p>¿Qué tanto sabes de deportes?</p>
   </header>
-  @if (loadingGame()) {
-  <section class="loading-game">
-    <p>Seleccionando deportista...</p>
-  </section>
-  } @else if (!gameStarted()) {
-  <section class="loading-game">
-    <p>{{ gameError() }}</p>
 
-    <button type="button" (click)="loadGame()">
-      Reintentar
-    </button>
-  </section>
-  } @else {
-  <!-- Aquí va tu buscador, intentos y resultados actuales -->
+  <!-- SELECCIÓN DE CATEGORÍA -->
+  @if (!selectedSport()) {
+
+    <section class="category-section">
+
+      <div class="section-heading">
+        <span class="section-label">COMIENZA A JUGAR</span>
+        <h2>Selecciona tu deporte</h2>
+        <p>Elige una categoría y demuestra cuánto sabes de tus deportistas favoritos.</p>
+      </div>
+
+      <div class="category-grid">
+
+        @for (sport of sports; track sport.value) {
+
+          <button
+            type="button"
+            class="category-card"
+            (click)="selectSport(sport.value)"
+          >
+            <span class="category-name">{{ sport.name }}</span>
+            <span class="category-action">JUGAR AHORA <span>→</span></span>
+          </button>
+
+        }
+
+      </div>
+
+    </section>
+
+  }
+
+  <!-- CARGANDO PARTIDA -->
+  @else if (loadingGame()) {
+
+    <section class="loading-game">
+      <div class="loader"></div>
+      <h2>Preparando el desafío</h2>
+      <p>Seleccionando deportista...</p>
+    </section>
+
+  }
+
+  <!-- ERROR AL CARGAR -->
+  @else if (!gameStarted()) {
+
+    <section class="loading-game error-state">
+      <h2>No se pudo iniciar la partida</h2>
+      <p>{{ gameError() }}</p>
+
+      <button type="button" class="primary-button" (click)="loadGame()">
+        Reintentar
+      </button>
+
+      <button type="button" class="secondary-button" (click)="changeSport()">
+        Cambiar categoría
+      </button>
+    </section>
+
   }
 
   <!-- PARTIDA -->
-  @if (gameStarted()) {
+  @else {
 
-  <section class="search-section">
+    <section class="category-info">
+      <div>
+        <span class="section-label">ESTÁS JUGANDO EN</span>
+        <strong>
+          {{ sports.find(sport => sport.value === selectedSport())?.name }}
+        </strong>
+      </div>
 
-    <div class="search-box">
-      <input type="text" [ngModel]="search" (ngModelChange)="onSearchChange($event)"
-        placeholder="Escribe el nombre de un deportista..." [disabled]="gameOver()" autocomplete="off" />
-
-      @if (loading()) {
-      <span class="search-status">
-        Buscando en TheSportsDB...
-      </span>
-      }
-    </div>
-
-    @if (apiError()) {
-    <p class="api-message">{{ apiError() }}</p>
-    }
-
-    @if (suggestions().length > 0 && !gameOver()) {
-    <div class="suggestions">
-
-      @for (athlete of suggestions(); track athlete.id) {
-      <button type="button" class="suggestion" (click)="selectAthlete(athlete)">
-        @if (athlete.imageUrl) {
-        <img [src]="athlete.imageUrl" [alt]="athlete.name" />
-        }
-
-        <div>
-          <strong>{{ athlete.name }}</strong>
-          <span>
-            {{ athlete.sport || 'Sin información' }}
-            ·
-            {{ athlete.team || 'Sin equipo' }}
-          </span>
-        </div>
+      <button type="button" class="secondary-button" (click)="changeSport()">
+        Cambiar deporte
       </button>
+    </section>
+
+    <!-- BUSCADOR -->
+    <section class="search-section">
+
+      <div class="section-heading">
+        <span class="section-label">¿PUEDES ADIVINARLO?</span>
+        <h2>Encuentra al deportista</h2>
+        <p>Escribe su nombre y selecciona una opción para descubrir sus características.</p>
+      </div>
+
+      <div class="search-box">
+
+        <span class="search-icon">⌕</span>
+
+        <input
+          type="text"
+          [ngModel]="search"
+          (ngModelChange)="onSearchChange($event)"
+          placeholder="Buscar deportista..."
+          [disabled]="gameOver()"
+          autocomplete="off"
+        />
+
+        @if (loading()) {
+          <span class="search-status">Buscando...</span>
+        }
+
+      </div>
+
+      @if (apiError()) {
+        <p class="api-message">{{ apiError() }}</p>
       }
 
-    </div>
+      <!-- SUGERENCIAS -->
+      @if (suggestions().length > 0 && !gameOver()) {
+
+        <div class="suggestions">
+
+          @for (athlete of suggestions(); track athlete.id) {
+
+            <button
+              type="button"
+              class="suggestion"
+              (click)="selectAthlete(athlete)"
+            >
+
+              @if (athlete.imageUrl) {
+                <img
+                  [src]="athlete.imageUrl"
+                  [alt]="athlete.name"
+                />
+              }
+
+              <div class="suggestion-info">
+                <strong>{{ athlete.name }}</strong>
+                <span>
+                  {{ athlete.sport || 'Sin información' }}
+                  ·
+                  {{ athlete.team || 'Sin equipo' }}
+                </span>
+              </div>
+
+              <span class="suggestion-arrow">→</span>
+
+            </button>
+
+          }
+
+        </div>
+
+      }
+
+    </section>
+
+    <!-- INFORMACIÓN DE LA PARTIDA -->
+    <section class="game-info">
+
+      <div>
+        <span class="section-label">TUS INTENTOS</span>
+        <strong>{{ attempts().length }} <span>/ 6</span></strong>
+      </div>
+
+      <div class="attempt-progress">
+        @for (item of [1, 2, 3, 4, 5, 6]; track item) {
+          <span [class.used]="attempts().length >= item"></span>
+        }
+      </div>
+
+    </section>
+
+    <!-- TABLA DE INTENTOS -->
+    @if (guessResults().length > 0) {
+
+      <section class="attempts-section">
+
+        <div class="table-heading">
+          <h2>Tus intentos</h2>
+          <span>Compara las pistas para encontrar la respuesta</span>
+        </div>
+
+        <div class="attempts">
+
+          <div class="attempt-header">
+            <span>Deportista</span>
+            <span>Deporte</span>
+            <span>País</span>
+            <span>Equipo</span>
+            <span>Posición</span>
+            <span>Liga</span>
+            <span>Edad</span>
+          </div>
+
+          @for (result of guessResults(); track result.athlete.id) {
+
+            <div class="attempt">
+
+              <span class="athlete-name">
+                {{ result.athlete.name }}
+              </span>
+
+              <!-- DEPORTE -->
+              <span
+                class="cell"
+                [class.exact]="result.fields.sport.match === 'exact'"
+                [class.partial]="result.fields.sport.match === 'partial'"
+                [class.wrong]="result.fields.sport.match === 'wrong'"
+                [class.unknown]="result.fields.sport.match === 'unknown'"
+              >
+                {{ result.fields.sport.value ?? 'N/D' }}
+              </span>
+
+              <!-- PAÍS -->
+              <span
+                class="cell"
+                [class.exact]="result.fields.nationality.match === 'exact'"
+                [class.partial]="result.fields.nationality.match === 'partial'"
+                [class.wrong]="result.fields.nationality.match === 'wrong'"
+                [class.unknown]="result.fields.nationality.match === 'unknown'"
+              >
+                {{ result.fields.nationality.value ?? 'N/D' }}
+              </span>
+
+              <!-- EQUIPO -->
+              <span
+                class="cell"
+                [class.exact]="result.fields.team.match === 'exact'"
+                [class.partial]="result.fields.team.match === 'partial'"
+                [class.wrong]="result.fields.team.match === 'wrong'"
+                [class.unknown]="result.fields.team.match === 'unknown'"
+              >
+                {{ result.fields.team.value ?? 'N/D' }}
+              </span>
+
+              <!-- POSICIÓN -->
+              <span
+                class="cell"
+                [class.exact]="result.fields.position.match === 'exact'"
+                [class.partial]="result.fields.position.match === 'partial'"
+                [class.wrong]="result.fields.position.match === 'wrong'"
+                [class.unknown]="result.fields.position.match === 'unknown'"
+              >
+                {{ result.fields.position.value ?? 'N/D' }}
+              </span>
+
+              <!-- LIGA -->
+              <span
+                class="cell"
+                [class.exact]="result.fields.league.match === 'exact'"
+                [class.partial]="result.fields.league.match === 'partial'"
+                [class.wrong]="result.fields.league.match === 'wrong'"
+                [class.unknown]="result.fields.league.match === 'unknown'"
+              >
+                {{ result.fields.league.value ?? 'N/D' }}
+              </span>
+
+              <!-- EDAD -->
+              <span
+                class="cell age-cell"
+                [class.exact]="result.fields.age.match === 'exact'"
+                [class.partial]="result.fields.age.match === 'partial'"
+                [class.higher]="result.fields.age.match === 'higher'"
+                [class.lower]="result.fields.age.match === 'lower'"
+                [class.unknown]="result.fields.age.match === 'unknown'"
+              >
+
+                {{ result.fields.age.value ?? 'N/D' }}
+
+                @if (result.fields.age.match === 'higher') {
+                  <span class="arrow">↓</span>
+                }
+
+                @if (result.fields.age.match === 'lower') {
+                  <span class="arrow">↑</span>
+                }
+
+              </span>
+
+            </div>
+
+          }
+
+        </div>
+
+      </section>
+
     }
 
-  </section>
+    <!-- VICTORIA -->
+    @if (won()) {
 
-  <section class="game-info">
-    <span>Intentos</span>
-    <strong>{{ attempts().length }} / 6</strong>
-  </section>
+      <section class="result success">
 
-  @if (guessResults().length > 0) {
+        <div class="result-icon">🏆</div>
+        <span class="section-label">DESAFÍO COMPLETADO</span>
 
-  <section class="attempts">
+        <h2>¡Excelente trabajo!</h2>
+        <p>Has encontrado al deportista correcto.</p>
 
-    <div class="attempt-header">
-      <span>Deportista</span>
-      <span>Deporte</span>
-      <span>País</span>
-      <span>Equipo</span>
-      <span>Posición</span>
-      <span>Liga</span>
-      <span>Edad</span>
-    </div>
+        @if (gameService.getTarget(); as target) {
 
-    @for (result of guessResults(); track result.athlete.id) {
+          <div class="answer-card">
 
-    <div class="attempt">
+            @if (target.imageUrl) {
+              <img
+                class="answer-image"
+                [src]="target.imageUrl"
+                [alt]="target.name"
+              />
+            }
 
-      <span class="athlete-name">
-        {{ result.athlete.name }}
-      </span>
+            <div class="answer-details">
+              <h3 class="correct-answer">{{ target.name }}</h3>
 
-      <!-- DEPORTE -->
-      <span class="cell" [class.exact]="result.fields.sport.match === 'exact'"
-        [class.partial]="result.fields.sport.match === 'partial'" [class.wrong]="result.fields.sport.match === 'wrong'"
-        [class.unknown]="result.fields.sport.match === 'unknown'">
-        {{ result.fields.sport.value ?? 'N/D' }}
-      </span>
+              <p class="answer-description">
+                {{ target.description || 'No hay una descripción disponible para este deportista.' }}
+              </p>
 
-      <!-- PAÍS -->
-      <span class="cell" [class.exact]="result.fields.nationality.match === 'exact'"
-        [class.partial]="result.fields.nationality.match === 'partial'"
-        [class.wrong]="result.fields.nationality.match === 'wrong'"
-        [class.unknown]="result.fields.nationality.match === 'unknown'">
-        {{ result.fields.nationality.value ?? 'N/D' }}
-      </span>
+              <div class="answer-tags">
+                <span>{{ target.team || 'Sin equipo' }}</span>
+                <span>{{ target.position || 'Sin posición' }}</span>
+                <span>{{ target.age ?? 'N/D' }} años</span>
+              </div>
+            </div>
 
-      <!-- EQUIPO -->
-      <span class="cell" [class.exact]="result.fields.team.match === 'exact'"
-        [class.partial]="result.fields.team.match === 'partial'" [class.wrong]="result.fields.team.match === 'wrong'"
-        [class.unknown]="result.fields.team.match === 'unknown'">
-        {{ result.fields.team.value ?? 'N/D' }}
-      </span>
+          </div>
 
-      <!-- POSICIÓN -->
-      <span class="cell" [class.exact]="result.fields.position.match === 'exact'"
-        [class.partial]="result.fields.position.match === 'partial'"
-        [class.wrong]="result.fields.position.match === 'wrong'"
-        [class.unknown]="result.fields.position.match === 'unknown'">
-        {{ result.fields.position.value ?? 'N/D' }}
-      </span>
-
-      <!-- LIGA -->
-      <span class="cell" [class.exact]="result.fields.league.match === 'exact'"
-        [class.partial]="result.fields.league.match === 'partial'"
-        [class.wrong]="result.fields.league.match === 'wrong'"
-        [class.unknown]="result.fields.league.match === 'unknown'">
-        {{ result.fields.league.value ?? 'N/D' }}
-      </span>
-
-      <!-- EDAD -->
-      <span class="cell age-cell" [class.exact]="result.fields.age.match === 'exact'"
-        [class.partial]="result.fields.age.match === 'partial'" [class.higher]="result.fields.age.match === 'higher'"
-        [class.lower]="result.fields.age.match === 'lower'" [class.unknown]="result.fields.age.match === 'unknown'">
-        {{ result.fields.age.value ?? 'N/D' }}
-
-        @if (result.fields.age.match === 'higher') {
-        <span class="arrow">↓</span>
         }
 
-        @if (result.fields.age.match === 'lower') {
-        <span class="arrow">↑</span>
+        <button type="button" class="primary-button" (click)="resetGame()">
+          Jugar nuevamente →
+        </button>
+
+      </section>
+
+    }
+
+    <!-- DERROTA -->
+    @if (gameOver() && !won()) {
+
+      <section class="result failure">
+
+        <div class="result-icon">🏁</div>
+        <span class="section-label">FIN DEL DESAFÍO</span>
+
+        <h2>¡Buen intento!</h2>
+        <p>Te has quedado sin intentos. Este era el deportista que buscabas:</p>
+
+        @if (gameService.getTarget(); as target) {
+
+          <div class="answer-card">
+
+            @if (target.imageUrl) {
+              <img
+                class="answer-image"
+                [src]="target.imageUrl"
+                [alt]="target.name"
+              />
+            }
+
+            <div class="answer-details">
+              <h3 class="correct-answer">{{ target.name }}</h3>
+
+              <p class="answer-description">
+                {{ target.description || 'No hay una descripción disponible para este deportista.' }}
+              </p>
+
+              <div class="answer-tags">
+                <span>{{ target.team || 'Sin equipo' }}</span>
+                <span>{{ target.position || 'Sin posición' }}</span>
+                <span>{{ target.age ?? 'N/D' }} años</span>
+              </div>
+            </div>
+
+          </div>
+
         }
 
-      </span>
+        <button type="button" class="primary-button" (click)="resetGame()">
+          Intentar nuevamente →
+        </button>
 
-    </div>
-
-    }
-
-  </section>
-
-  }
-
-  <!-- VICTORIA -->
-  @if (won()) {
-
-  <section class="result success">
-    <h2>¡Correcto!</h2>
-    <p>Has encontrado al deportista.</p>
-
-    @if (gameService.getTarget(); as target) {
-
-    <h3 class="correct-answer">
-      {{ target.name }}
-    </h3>
-
-    @if (target.imageUrl) {
-    <img class="answer-image" [src]="target.imageUrl" [alt]="target.name" />
-    }
+      </section>
 
     }
-
-    <button type="button" (click)="resetGame()">
-      Jugar nuevamente
-    </button>
-  </section>
-
-  }
-
-  <!-- DERROTA -->
-  @if (gameOver() && !won()) {
-
-  <section class="result failure">
-    <h2>Se acabaron los intentos</h2>
-
-    <p>El deportista correcto era:</p>
-
-    @if (gameService.getTarget(); as target) {
-
-    <h3 class="correct-answer">
-      {{ target.name }}
-    </h3>
-
-    @if (target.imageUrl) {
-    <img class="answer-image" [src]="target.imageUrl" [alt]="target.name" />
-    }
-
-    }
-
-    <button type="button" (click)="resetGame()">
-      Intentar nuevamente
-    </button>
-  </section>
-
-  }
 
   }
 
