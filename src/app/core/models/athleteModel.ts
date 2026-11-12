@@ -9,4 +9,5 @@ export interface Athlete {
   league: string | null;
   imageUrl?: string;
   birthDate?: string;
+  description?: string;
 }

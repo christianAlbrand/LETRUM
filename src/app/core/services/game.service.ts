@@ -1,3 +1,4 @@
+
 import { Injectable, inject } from '@angular/core';
 
 import { Observable, map } from 'rxjs';
@@ -26,6 +27,9 @@ export class GameService {
 
   private results: GuessResult[] = [];
 
+  // DEPORTE ACTUAL
+  private selectedSport: string | null = null;
+
   // OBTENER CATÁLOGO
   getCatalog(): Athlete[] {
     return Array.from(this.catalog.values());
@@ -34,6 +38,11 @@ export class GameService {
   // OBTENER DEPORTISTA OBJETIVO
   getTarget(): Athlete | null {
     return this.target;
+  }
+
+  // OBTENER DEPORTE SELECCIONADO
+  getSelectedSport(): string | null {
+    return this.selectedSport;
   }
 
   // OBTENER INTENTOS
@@ -51,13 +60,14 @@ export class GameService {
     return this.catalog.size;
   }
 
-  // INICIALIZAR PARTIDA CON DATOS DE LA API
-  initializeGame(): Observable<boolean> {
+  // INICIALIZAR PARTIDA SEGÚN EL DEPORTE SELECCIONADO
+  initializeGame(sport: string): Observable<boolean> {
+
+    this.selectedSport = sport;
 
     return this.sportsDb
-      .getPlayersFromRandomTeam('Soccer')
+      .getPlayersFromRandomTeam(sport)
       .pipe(
-
         map(players => {
 
           this.catalog.clear();
@@ -76,14 +86,12 @@ export class GameService {
 
           if (this.catalog.size < 2) {
             throw new Error(
-              'No se encontraron suficientes jugadores. Intenta nuevamente.'
+              `No se encontraron suficientes jugadores de ${sport}.`
             );
           }
 
           return this.startGame();
-
         })
-
       );
   }
 

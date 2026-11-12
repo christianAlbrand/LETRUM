@@ -37,10 +37,19 @@ export class GameComponent {
 
   private search$ = new Subject<string>();
 
-  // ESTADOS DEL JUEGO
+  // CATEGORÍAS DISPONIBLES
+  sports = [
+    { name: 'Fútbol', value: 'Soccer' },
+    { name: 'Básquetbol', value: 'Basketball' },
+    { name: 'Fútbol americano', value: 'American Football' },
+    { name: 'Béisbol', value: 'Baseball' }
+  ];
 
+  selectedSport = signal<string | null>(null);
+
+  // ESTADOS DEL JUEGO
   gameStarted = signal(false);
-  loadingGame = signal(true);
+  loadingGame = signal(false);
   gameError = signal('');
 
   search = '';
@@ -49,6 +58,7 @@ export class GameComponent {
   guessResults = signal<GuessResult[]>([]);
 
   apiResults = signal<Athlete[]>([]);
+
   suggestions = computed(() => {
 
     const seen = new Set<number>();
@@ -78,19 +88,12 @@ export class GameComponent {
   won = signal(false);
 
   // CONSTRUCTOR
-
   constructor(
     public gameService: GameService,
     private sportsDbService: SportsDbService
   ) {
 
-    // INICIALIZAR PARTIDA AUTOMÁTICAMENTE
-
-    this.loadGame();
-    
-
     // BÚSQUEDA DE DEPORTISTAS EN LA API
-
     this.search$
       .pipe(
 
@@ -106,7 +109,12 @@ export class GameComponent {
 
         switchMap(query => {
 
-          if (query.length < this.MIN_API_CHARS) {
+          const sport = this.selectedSport();
+
+          if (
+            query.length < this.MIN_API_CHARS ||
+            !sport
+          ) {
             this.loading.set(false);
             return of<Athlete[]>([]);
           }
@@ -116,6 +124,19 @@ export class GameComponent {
           return this.sportsDbService.searchPlayers(query).pipe(
 
             timeout({ first: 10000 }),
+
+            map(results =>
+              results
+                .map(athlete => ({
+                  ...athlete,
+                  sport: athlete.sport
+                    ? this.normalizeSport(athlete.sport)
+                    : null
+                }))
+                .filter(athlete =>
+                  athlete.sport === sport
+                )
+            ),
 
             catchError(error => {
 
@@ -140,15 +161,7 @@ export class GameComponent {
       .subscribe(results => {
 
         this.loading.set(false);
-
-        this.apiResults.set(
-          results.map(athlete => ({
-            ...athlete,
-            sport: athlete.sport
-              ? this.normalizeSport(athlete.sport)
-              : null
-          }))
-        );
+        this.apiResults.set(results);
 
         const query = this.search.trim();
 
@@ -158,7 +171,7 @@ export class GameComponent {
           this.apiResults().length === 0
         ) {
           this.apiError.set(
-            'No se encontraron deportistas.'
+            'No se encontraron deportistas de esta categoría.'
           );
         }
 
@@ -167,7 +180,6 @@ export class GameComponent {
   }
 
   // NORMALIZAR DEPORTE
-
   private normalizeSport(sport: string): string {
 
     const value = this.normalize(sport);
@@ -178,7 +190,17 @@ export class GameComponent {
       'futbol': 'Soccer',
       'football': 'Soccer',
       'association football': 'Soccer',
-      'futbol soccer': 'Soccer'
+      'futbol soccer': 'Soccer',
+
+      'basketball': 'Basketball',
+      'basquetbol': 'Basketball',
+      'baloncesto': 'Basketball',
+
+      'american football': 'American Football',
+      'gridiron': 'American Football',
+
+      'baseball': 'Baseball',
+      'beisbol': 'Baseball'
 
     };
 
@@ -186,7 +208,6 @@ export class GameComponent {
   }
 
   // NORMALIZAR TEXTO
-
   private normalize(text: string): string {
 
     return text
@@ -197,9 +218,25 @@ export class GameComponent {
       .replace(/\s+/g, ' ');
   }
 
-  // CARGAR PARTIDA AUTOMÁTICAMENTE
+  // SELECCIONAR CATEGORÍA
+  selectSport(sport: string): void {
 
-  loadGame(): void {
+    this.selectedSport.set(sport);
+
+    this.loadGame(sport);
+
+  }
+
+  // CARGAR PARTIDA
+  loadGame(sport?: string): void {
+
+    const selected = sport || this.selectedSport();
+
+    if (!selected) {
+      return;
+    }
+
+    this.selectedSport.set(selected);
 
     this.loadingGame.set(true);
     this.gameStarted.set(false);
@@ -214,7 +251,7 @@ export class GameComponent {
     this.clearSearch();
 
     this.gameService
-      .initializeGame()
+      .initializeGame(selected)
       .pipe(
         timeout({ first: 15000 }),
         takeUntilDestroyed(this.destroyRef)
@@ -261,7 +298,6 @@ export class GameComponent {
   }
 
   // CAMBIO EN EL INPUT DE BÚSQUEDA
-
   onSearchChange(value: string): void {
 
     this.search = value;
@@ -279,7 +315,6 @@ export class GameComponent {
   }
 
   // MANEJAR ERRORES DE LA API
-
   private handleError(error: any): void {
 
     if (error?.name === 'TimeoutError') {
@@ -308,7 +343,6 @@ export class GameComponent {
   }
 
   // SELECCIONAR DEPORTISTA
-
   selectAthlete(athlete: Athlete): void {
 
     if (!this.gameStarted() || this.gameOver()) {
@@ -352,15 +386,33 @@ export class GameComponent {
   }
 
   // REINICIAR PARTIDA CON UN NUEVO DEPORTISTA
-
   resetGame(): void {
 
     this.loadGame();
 
   }
 
-  // LIMPIAR BÚSQUEDA
+  // VOLVER A SELECCIONAR CATEGORÍA
+  changeSport(): void {
 
+    this.selectedSport.set(null);
+
+    this.gameStarted.set(false);
+    this.loadingGame.set(false);
+
+    this.gameOver.set(false);
+    this.won.set(false);
+
+    this.gameError.set('');
+
+    this.attempts.set([]);
+    this.guessResults.set([]);
+
+    this.clearSearch();
+
+  }
+
+  // LIMPIAR BÚSQUEDA
   private clearSearch(): void {
 
     this.search = '';

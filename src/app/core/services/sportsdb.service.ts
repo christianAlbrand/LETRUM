@@ -1,37 +1,106 @@
+
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 
 import {
     Observable,
+    forkJoin,
     map,
     of,
-    tap,
-    switchMap
+    tap
 } from 'rxjs';
 
 import { Athlete } from '../models/athleteModel';
 
-import {
-    SportsDbPlayer,
-    SportsDbPlayersResponse,
-    SportsDbTeam,
-    SportsDbTeamsResponse,
-    SportsDbLeague,
-    SportsDbLeagueApi,
-    SportsDbLeaguesResponse
-} from '../models/sportsdb.model';
-
 @Injectable({
     providedIn: 'root'
 })
-
 export class SportsDbService {
 
     private http = inject(HttpClient);
 
-    private readonly API_URL = 'https://www.thesportsdb.com/api/v1/json/123';
+    private readonly DATA_URL = 'assets/data';
 
     private cache = new Map<string, Athlete[]>();
+
+    // OBTENER EL ARCHIVO JSON SEGÚN EL DEPORTE
+    private getFileName(sport: string): string {
+
+        const normalized = sport
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+
+        const files: Record<string, string> = {
+            soccer: 'soccer.json',
+            football: 'soccer.json',
+            futbol: 'soccer.json',
+            'futbol soccer': 'soccer.json',
+
+            basketball: 'basketball.json',
+            basquetbol: 'basketball.json',
+
+            'american football': 'american-football.json',
+            'futbol americano': 'american-football.json',
+
+            baseball: 'baseball.json',
+            beisbol: 'baseball.json'
+        };
+
+        const file = files[normalized];
+
+        if (!file) {
+            throw new Error(
+                `No existe un catálogo para el deporte: ${sport}`
+            );
+        }
+
+        return file;
+    }
+
+    // CARGAR TODOS LOS DEPORTISTAS DE UN DEPORTE
+    getPlayersFromRandomTeam(sport: string): Observable<Athlete[]> {
+
+        const fileName = this.getFileName(sport);
+
+        const cached = this.cache.get(fileName);
+
+        if (cached) {
+            return of(cached);
+        }
+
+        return this.http
+            .get<Athlete[]>(`${this.DATA_URL}/${fileName}`)
+            .pipe(
+                map(players => {
+
+                    if (!Array.isArray(players)) {
+                        throw new Error(
+                            `El archivo ${fileName} no contiene un catálogo válido.`
+                        );
+                    }
+
+                    return players
+                        .filter(player =>
+                            player &&
+                            Number.isFinite(Number(player.id)) &&
+                            !!player.name
+                        )
+                        .map(player => ({
+                            ...player,
+                            id: Number(player.id),
+                            age: this.calculateAge(
+                                player.birthDate
+                            )
+                        }));
+                }),
+
+                tap(players => {
+                    this.cache.set(fileName, players);
+                })
+            );
+    }
 
     // BUSCAR DEPORTISTAS POR NOMBRE
     searchPlayers(name: string): Observable<Athlete[]> {
@@ -42,206 +111,37 @@ export class SportsDbService {
             return of([]);
         }
 
-        const cacheKey = cleanName.toLowerCase();
-
-        const cached = this.cache.get(cacheKey);
-
-        if (cached) {
-            return of(cached);
-        }
-
-        const params = new HttpParams()
-            .set('p', cleanName.replace(/\s+/g, '_'));
-
-        return this.http.get<SportsDbPlayersResponse>(
-            `${this.API_URL}/searchplayers.php`,
-            { params }
-        ).pipe(
-
-            map(response =>
-                (response.player ?? [])
-                    .filter(player =>
-                        player.idPlayer && player.strPlayer
-                    )
-                    .map(player => this.mapPlayer(player))
-            ),
-
-            tap(players => {
-                this.cache.set(cacheKey, players);
-            })
-
+        return this.getAllPlayers().pipe(
+            map(players =>
+                players.filter(player =>
+                    this.normalize(player.name)
+                        .includes(cleanName)
+                )
+            )
         );
     }
 
     // OBTENER UN DEPORTISTA POR SU ID
     getPlayerById(id: number): Observable<Athlete | null> {
 
-        const params = new HttpParams()
-            .set('id', id.toString());
-
-        return this.http.get<SportsDbPlayersResponse>(
-            `${this.API_URL}/lookupplayer.php`,
-            { params }
-        ).pipe(
-
-            map(response => {
-                const player = response.player?.[0];
-
-                return player
-                    ? this.mapPlayer(player)
-                    : null;
-            })
-
+        return this.getAllPlayers().pipe(
+            map(players =>
+                players.find(player => player.id === id) ?? null
+            )
         );
     }
 
-    // OBTENER EQUIPOS DE UN DEPORTE
+    // CARGAR LOS CUATRO CATÁLOGOS
+    private getAllPlayers(): Observable<Athlete[]> {
 
-    getLeaguesBySport(sport: string): Observable<SportsDbLeague[]> {
-        const params = new HttpParams().set('s', sport);
-
-        return this.http.get<SportsDbLeaguesResponse>(
-            `${this.API_URL}/search_all_leagues.php`,
-            { params }
-        ).pipe(
-            map(response => {
-                const leagues = response?.countries;
-
-                if (!Array.isArray(leagues)) {
-                    console.error('SPORTLE: Respuesta de ligas inesperada:', response);
-                    return [];
-                }
-
-                return leagues
-                    .filter((league): league is SportsDbLeagueApi =>
-                        !!league?.idLeague &&
-                        !!league?.strLeague &&
-                        !!league?.strSport
-                    )
-                    .map(league => ({
-                        id: league.idLeague,
-                        name: league.strLeague
-                    }));
-            })
+        return forkJoin([
+            this.getPlayersFromRandomTeam('Soccer'),
+            this.getPlayersFromRandomTeam('Basketball'),
+            this.getPlayersFromRandomTeam('American Football'),
+            this.getPlayersFromRandomTeam('Baseball')
+        ]).pipe(
+            map(catalogs => catalogs.flat())
         );
-    }
-
-    getTeamsByLeagueId(idLeague: string): Observable<SportsDbTeam[]> {
-        const params = new HttpParams().set('id', idLeague);
-
-        return this.http.get<SportsDbTeamsResponse>(
-            `${this.API_URL}/lookup_all_teams.php`,
-            { params }
-        ).pipe(
-            map(response => {
-                const teams = response?.teams;
-
-                if (!Array.isArray(teams)) {
-                    console.error('SPORTLE: Respuesta de equipos:', response);
-                    return [];
-                }
-
-                return teams.filter(team =>
-                    !!team?.idTeam && !!team?.strTeam
-                );
-            })
-        );
-    }
-
-
-    // OBTENER JUGADORES DE UN EQUIPO ALEATORIO
-
-    getPlayersFromRandomTeam(sport: string): Observable<Athlete[]> {
-        return this.getLeaguesBySport(sport).pipe(
-            switchMap(leagues => {
-                if (!leagues.length) {
-                    throw new Error('TheSportsDB no devolvió ligas para este deporte.');
-                }
-
-                const randomLeague =
-                    leagues[Math.floor(Math.random() * leagues.length)];
-
-                console.log('SPORTLE: Liga seleccionada:', randomLeague.name);
-
-                return this.getTeamsByLeagueId(randomLeague.id);
-            }),
-            switchMap(teams => {
-                if (!teams.length) {
-                    throw new Error('TheSportsDB no devolvió equipos para la liga.');
-                }
-
-                const randomTeam =
-                    teams[Math.floor(Math.random() * teams.length)];
-
-                console.log('SPORTLE: Equipo seleccionado:', randomTeam.strTeam);
-
-                const params = new HttpParams().set('id', randomTeam.idTeam);
-
-                return this.http.get<SportsDbPlayersResponse>(
-                    `${this.API_URL}/lookup_all_players.php`,
-                    { params }
-                ).pipe(
-                    map(response => {
-                        const players = response?.player;
-
-                        if (!Array.isArray(players)) {
-                            console.error('SPORTLE: Respuesta de jugadores inesperada:', response);
-                            return [];
-                        }
-
-                        return players
-                            .filter(player =>
-                                player &&
-                                player.idPlayer &&
-                                player.strPlayer
-                            )
-                            .map(player => this.mapPlayer(player));
-                    })
-                );
-            })
-        );
-    }
-
-
-    // CONVERTIR RESPUESTA DE API A ATHLETE
-    private mapPlayer(player: SportsDbPlayer): Athlete {
-
-        return {
-            id: Number(player.idPlayer),
-
-            name: player.strPlayer.trim(),
-
-            sport: this.cleanValue(player.strSport),
-
-            nationality: this.cleanValue(
-                player.strNationality
-            ),
-
-            age: this.calculateAge(player.dateBorn),
-
-            team: this.cleanValue(player.strTeam),
-
-            position: this.cleanValue(player.strPosition),
-
-            league: this.cleanValue(player.strLeague),
-
-            imageUrl:
-                player.strThumb ||
-                player.strCutout ||
-                undefined,
-
-            birthDate: player.dateBorn || undefined
-        };
-    }
-
-    // LIMPIAR VALORES VACÍOS
-    private cleanValue(
-        value?: string | null
-    ): string | null {
-
-        const clean = value?.trim();
-
-        return clean ? clean : null;
     }
 
     // NORMALIZAR TEXTO
@@ -250,13 +150,14 @@ export class SportsDbService {
         return value
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
             .trim()
             .replace(/\s+/g, ' ');
     }
 
-    // CALCULAR EDAD
+    // CALCULAR EDAD A PARTIR DE LA FECHA DE NACIMIENTO
     private calculateAge(
-        date?: string | null
+        date?: string
     ): number | null {
 
         if (!date) {
