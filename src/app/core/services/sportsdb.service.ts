@@ -45,7 +45,11 @@ export class SportsDbService {
             'futbol americano': 'american-football.json',
 
             baseball: 'baseball.json',
-            beisbol: 'baseball.json'
+            beisbol: 'baseball.json',
+
+            formula1: 'formula1.json',
+            'formula 1': 'formula1.json',
+            'f1': 'formula1.json'
         };
 
         const file = files[normalized];
@@ -138,7 +142,8 @@ export class SportsDbService {
             this.getPlayersFromRandomTeam('Soccer'),
             this.getPlayersFromRandomTeam('Basketball'),
             this.getPlayersFromRandomTeam('American Football'),
-            this.getPlayersFromRandomTeam('Baseball')
+            this.getPlayersFromRandomTeam('Baseball'),
+            this.getPlayersFromRandomTeam('Formula 1')
         ]).pipe(
             map(catalogs => catalogs.flat())
         );

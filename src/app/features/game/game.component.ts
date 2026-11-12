@@ -42,7 +42,8 @@ export class GameComponent {
     { name: 'Fútbol', value: 'Soccer' },
     { name: 'Básquetbol', value: 'Basketball' },
     { name: 'Fútbol americano', value: 'American Football' },
-    { name: 'Béisbol', value: 'Baseball' }
+    { name: 'Béisbol', value: 'Baseball' },
+    { name: 'Fórmula 1', value: 'Formula 1' }
   ];
 
   selectedSport = signal<string | null>(null);
