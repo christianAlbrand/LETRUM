@@ -173,10 +173,9 @@ export class GameService {
 
       fields: {
 
-        sport: this.compareText(
-          athlete.sport,
-          this.target.sport,
-          true
+        gender: this.compareText(
+          athlete.gender,
+          this.target.gender
         ),
 
         nationality: this.compareText(
@@ -221,33 +220,10 @@ export class GameService {
       .replace(/\s+/g, ' ');
   }
 
-  // NORMALIZAR DEPORTES Y SINÓNIMOS
-  private normalizeSport(value: string): string {
-
-    const normalized = this.normalize(value);
-
-    const aliases: Record<string, string> = {
-
-      soccer: 'soccer',
-
-      football: 'soccer',
-
-      futbol: 'soccer',
-
-      'association football': 'soccer',
-
-      'futbol soccer': 'soccer'
-
-    };
-
-    return aliases[normalized] ?? normalized;
-  }
-
   // COMPARAR CAMPOS DE TEXTO
   private compareText(
     value: string | null,
-    target: string | null,
-    isSport = false
+    target: string | null
   ): FieldResult {
 
     if (!value || !target) {
@@ -257,13 +233,9 @@ export class GameService {
       };
     }
 
-    const normalizedValue = isSport
-      ? this.normalizeSport(value)
-      : this.normalize(value);
+    const normalizedValue = this.normalize(value);
 
-    const normalizedTarget = isSport
-      ? this.normalizeSport(target)
-      : this.normalize(target);
+    const normalizedTarget = this.normalize(target);
 
     if (normalizedValue === normalizedTarget) {
 

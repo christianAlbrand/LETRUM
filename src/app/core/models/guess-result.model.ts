@@ -17,7 +17,7 @@ export interface GuessResult {
   athlete: Athlete;
 
   fields: {
-    sport: FieldResult;
+    gender: FieldResult;
     nationality: FieldResult;
     team: FieldResult;
     position: FieldResult;
