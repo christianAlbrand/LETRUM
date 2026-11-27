@@ -20,6 +20,7 @@ import { GuessResult } from '../../core/models/guess-result.model';
 
 import { GameService } from '../../core/services/game.service';
 import { SportsDbService } from '../../core/services/sportsdb.service';
+import { PlayerPhotoService } from '../../core/services/player-photo.service';
 
 @Component({
   selector: 'app-game',
@@ -34,8 +35,13 @@ export class GameComponent {
   private readonly MAX_SUGGESTIONS = 10;
   private readonly MAX_ATTEMPTS = 6;
   private readonly destroyRef = inject(DestroyRef);
+  private readonly photoService = inject(PlayerPhotoService);
 
   private search$ = new Subject<string>();
+
+  // FOTOS OBTENIDAS DE WIKIPEDIA (POR NOMBRE)
+  photos = signal<Record<string, string>>({});
+  private requestedPhotos = new Set<string>();
 
   // CATEGORÍAS DISPONIBLES
   sports = [
@@ -163,6 +169,10 @@ export class GameComponent {
 
         this.loading.set(false);
         this.apiResults.set(results);
+
+        results
+          .slice(0, this.MAX_SUGGESTIONS)
+          .forEach(athlete => this.ensurePhoto(athlete));
 
         const query = this.search.trim();
 
@@ -382,7 +392,52 @@ export class GameComponent {
       this.attempts().length >= this.MAX_ATTEMPTS
     ) {
       this.gameOver.set(true);
+
+      const target = this.gameService.getTarget();
+
+      if (target) {
+        this.ensurePhoto(target);
+      }
     }
+
+  }
+
+  // FOTO DEL DEPORTISTA: LA DEL JSON O, SI NO TIENE, LA DE WIKIPEDIA
+  photoOf(athlete: Athlete): string | null {
+
+    return (
+      athlete.imageUrl ||
+      this.photos()[athlete.name] ||
+      null
+    );
+
+  }
+
+  // PEDIR LA FOTO A WIKIPEDIA UNA SOLA VEZ POR DEPORTISTA
+  private ensurePhoto(athlete: Athlete): void {
+
+    if (
+      athlete.imageUrl ||
+      this.requestedPhotos.has(athlete.name)
+    ) {
+      return;
+    }
+
+    this.requestedPhotos.add(athlete.name);
+
+    this.photoService
+      .getPhoto(athlete.name)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(url => {
+
+        if (url) {
+          this.photos.update(photos => ({
+            ...photos,
+            [athlete.name]: url
+          }));
+        }
+
+      });
 
   }
 

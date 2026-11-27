@@ -130,9 +130,9 @@
               (click)="selectAthlete(athlete)"
             >
 
-              @if (athlete.imageUrl) {
+              @if (photoOf(athlete); as photo) {
                 <img
-                  [src]="athlete.imageUrl"
+                  [src]="photo"
                   [alt]="athlete.name"
                 />
               }
@@ -140,7 +140,7 @@
               <div class="suggestion-info">
                 <strong>{{ athlete.name }}</strong>
                 <span>
-                  {{ athlete.sport || 'Sin información' }}
+                  {{ athlete.nationality || 'Sin información' }}
                   ·
                   {{ athlete.team || 'Sin equipo' }}
                 </span>
@@ -188,10 +188,10 @@
 
           <div class="attempt-header">
             <span>Deportista</span>
-            <span>Deporte</span>
+            <span>Género</span>
             <span>País</span>
             <span>Equipo</span>
-            <span>Posición</span>
+            <span>{{ selectedSport() === 'Formula 1' ? 'Estatus' : 'Posición' }}</span>
             <span>Liga</span>
             <span>Edad</span>
           </div>
@@ -204,15 +204,15 @@
                 {{ result.athlete.name }}
               </span>
 
-              <!-- DEPORTE -->
+              <!-- GÉNERO -->
               <span
                 class="cell"
-                [class.exact]="result.fields.sport.match === 'exact'"
-                [class.partial]="result.fields.sport.match === 'partial'"
-                [class.wrong]="result.fields.sport.match === 'wrong'"
-                [class.unknown]="result.fields.sport.match === 'unknown'"
+                [class.exact]="result.fields.gender.match === 'exact'"
+                [class.partial]="result.fields.gender.match === 'partial'"
+                [class.wrong]="result.fields.gender.match === 'wrong'"
+                [class.unknown]="result.fields.gender.match === 'unknown'"
               >
-                {{ result.fields.sport.value ?? 'N/D' }}
+                {{ result.fields.gender.value ?? 'N/D' }}
               </span>
 
               <!-- PAÍS -->
@@ -306,10 +306,10 @@
 
           <div class="answer-card">
 
-            @if (target.imageUrl) {
+            @if (photoOf(target); as photo) {
               <img
                 class="answer-image"
-                [src]="target.imageUrl"
+                [src]="photo"
                 [alt]="target.name"
               />
             }
@@ -355,10 +355,10 @@
 
           <div class="answer-card">
 
-            @if (target.imageUrl) {
+            @if (photoOf(target); as photo) {
               <img
                 class="answer-image"
-                [src]="target.imageUrl"
+                [src]="photo"
                 [alt]="target.name"
               />
             }
